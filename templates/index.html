@@ -212,7 +212,7 @@
       <p><strong>${data.weather[0].main}</strong>: ${data.weather[0].description}</p>
       <p>🌡 Temp: ${data.main.temp}°C (Feels like: ${data.main.feels_like}°C)</p>
       <p>💧 Humidity: ${data.main.humidity}%</p>
-      <p>🌬 Wind: ${data.wind.speed} m/s</p>
+      <p>🌬 Wind: ${data.wind.speed} m/s (${(data.wind.speed * 3.6).toFixed(1)} km/h)</p>
       <p>🌅 Sunrise: ${unixToTime(data.sys.sunrise)}</p>
       <p>🌇 Sunset: ${unixToTime(data.sys.sunset)}</p>
     `;
