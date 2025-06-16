@@ -57,5 +57,29 @@ def weather_alert():
         return jsonify({"alert": "High wind speed detected!"})
     return jsonify({"alert": "Weather is normal."})
 
+@app.route('/weatherByCoords')
+def weather_by_coords():
+    lat = request.args.get('lat')
+    lon = request.args.get('lon')
+    if not lat or not lon:
+        return jsonify({"error": "Coordinates missing"}), 400
+
+    url = f"http://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={API_KEY}&units=metric"
+    res = requests.get(url)
+    return jsonify(res.json())
+    
+@app.route('/locations/delete', methods=['DELETE'])
+def delete_location():
+    city_to_delete = request.args.get('city')
+    with open(SAVED_LOCATIONS_FILE, 'r') as f:
+        locations = json.load(f)
+
+    if city_to_delete in locations:
+        locations.remove(city_to_delete)
+        with open(SAVED_LOCATIONS_FILE, 'w') as f:
+            json.dump(locations, f)
+
+    return jsonify(locations)
+
 if __name__ == '__main__':
     app.run(debug=True)

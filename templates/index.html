@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <title>Retro Weather</title>
@@ -114,8 +115,13 @@
     }
 
     @keyframes blink {
-      from { opacity: 1; }
-      to   { opacity: 0.6; }
+      from {
+        opacity: 1;
+      }
+
+      to {
+        opacity: 0.6;
+      }
     }
 
     @media (max-width: 500px) {
@@ -129,6 +135,7 @@
     }
   </style>
 </head>
+
 <body>
   <h1>🌤️ Retro Weather App</h1>
 
@@ -136,6 +143,8 @@
     <input type="text" id="cityInput" placeholder="Enter city" />
     <button onclick="fetchWeather()">Get Weather</button>
     <button onclick="saveCity()">Save City</button>
+    <button onclick="fetchByLocation()">📍 Use Current Location</button>
+
   </div>
 
   <div id="savedList"></div>
@@ -143,6 +152,44 @@
   <div id="weather"></div>
 
   <script>
+    async function fetchByLocation() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(async position => {
+          const lat = position.coords.latitude;
+          const lon = position.coords.longitude;
+
+          const res = await fetch(`/weatherByCoords?lat=${lat}&lon=${lon}`);
+          const data = await res.json();
+
+          if (data.error) {
+            document.getElementById('weather').innerHTML = `<p>${data.error}</p>`;
+            return;
+          }
+
+          const iconCode = data.weather[0].icon;
+          const iconUrl = `https://openweathermap.org/img/wn/${iconCode}@2x.png`;
+
+          const html = `
+        <h2>${data.name}, ${data.sys.country}</h2>
+        <img src="${iconUrl}" alt="${data.weather[0].description}" />
+        <p><strong>${data.weather[0].main}</strong>: ${data.weather[0].description}</p>
+        <p>🌡 Temp: ${data.main.temp}°C (Feels like: ${data.main.feels_like}°C)</p>
+        <p>💧 Humidity: ${data.main.humidity}%</p>
+        <p>🌬 Wind: ${data.wind.speed} m/s</p>
+        <p>🌅 Sunrise: ${unixToTime(data.sys.sunrise)}</p>
+        <p>🌇 Sunset: ${unixToTime(data.sys.sunset)}</p>
+      `;
+          document.getElementById('weather').innerHTML = html;
+
+          const alertRes = await fetch(`/alert?city=${data.name}`);
+          const alertData = await alertRes.json();
+          document.getElementById('alert').innerText = alertData.alert || '';
+        });
+      } else {
+        alert("Geolocation not supported.");
+      }
+    }
+
     function unixToTime(unix) {
       return new Date(unix * 1000).toLocaleTimeString();
     }
@@ -152,7 +199,7 @@
       const res = await fetch(`/weather?city=${cityName}`);
       const data = await res.json();
       const iconCode = data.weather[0].icon;
-      const iconUrl = `https://openweathermap.org/img/wn/${iconCode}@2x.png`; 
+      const iconUrl = `https://openweathermap.org/img/wn/${iconCode}@2x.png`;
 
       if (data.error) {
         document.getElementById('weather').innerHTML = `<p>${data.error}</p>`;
@@ -177,22 +224,26 @@
     }
 
     async function saveCity() {
-  const city = document.getElementById('cityInput').value.trim();
-  const res = await fetch('/locations');
-  const cities = await res.json();
+      const city = document.getElementById('cityInput').value.trim();
+      const res = await fetch('/locations');
+      const cities = await res.json();
 
-  if (cities.length >= 5) {
-    document.getElementById('alert').innerText = "⚠️ You can save only 5 cities.";
-    return;
-  }
+      if (cities.length >= 5) {
+        document.getElementById('alert').innerText = "⚠️ You can save only 5 cities.";
+        return;
+      }
 
-  await fetch('/locations', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ city })
-  });
+      await fetch('/locations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ city })
+      });
 
-  document.getElementById('alert').innerText = ""; // Clear alert if successful
+      document.getElementById('alert').innerText = ""; // Clear alert if successful
+      loadSavedCities();
+    }
+    async function deleteCity(city) {
+  await fetch(`/locations/delete?city=${city}`, { method: 'DELETE' });
   loadSavedCities();
 }
 
@@ -203,14 +254,27 @@
       const listDiv = document.getElementById('savedList');
       listDiv.innerHTML = '<h3>📍 Saved Locations</h3>';
       cities.forEach(city => {
+        const wrapper = document.createElement('div');
+        wrapper.style.display = 'inline-block';
+        wrapper.style.margin = '5px';
+
         const btn = document.createElement('button');
         btn.innerText = city;
         btn.onclick = () => fetchWeather(city);
-        listDiv.appendChild(btn);
+
+        const delBtn = document.createElement('button');
+        delBtn.innerText = "❌";
+        delBtn.style.marginLeft = "5px";
+        delBtn.onclick = () => deleteCity(city);
+
+        wrapper.appendChild(btn);
+        wrapper.appendChild(delBtn);
+        listDiv.appendChild(wrapper);
       });
     }
 
     loadSavedCities();
   </script>
 </body>
+
 </html>
