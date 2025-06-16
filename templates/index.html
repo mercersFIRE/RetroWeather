@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Retro Weather</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Share Tech Mono', monospace;
+      background: linear-gradient(135deg, #0f0f0f 0%, #1c1c1c 40%, #0a0a0a 100%);
+      color: #f4f4f4;
+      text-align: center;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+    }
+
+    h1 {
+      color: #00ffe7;
+      font-size: 2.2rem;
+      margin-bottom: 30px;
+      text-shadow: 0 0 10px #00ffe7;
+    }
+
+    .input-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+
+    input[type="text"] {
+      width: 220px;
+      padding: 10px 14px;
+      border: none;
+      border-radius: 6px;
+      background-color: #1e1e1e;
+      color: #00ffe7;
+      font-size: 1rem;
+      outline: none;
+      box-shadow: inset 0 0 5px #00ffe780;
+    }
+
+    button {
+      background-color: #00ffe7;
+      color: black;
+      border: none;
+      padding: 10px 16px;
+      font-size: 1rem;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    button:hover {
+      background-color: #00ccbb;
+      transform: scale(1.05);
+    }
+
+    #weather {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(10px);
+      border: 1px solid #00ffe7;
+      border-radius: 14px;
+      padding: 25px;
+      margin-top: 30px;
+      box-shadow: 0 0 20px #00ffe73a;
+      max-width: 400px;
+      width: 90%;
+    }
+
+    #weather h2 {
+      color: #00ffe7;
+      margin-bottom: 10px;
+    }
+
+    #savedList {
+      margin-top: 20px;
+    }
+
+    #savedList h3 {
+      margin-bottom: 10px;
+      color: #ddd;
+    }
+
+    #savedList button {
+      background: transparent;
+      border: 1px solid #00ffe7;
+      color: #00ffe7;
+      margin: 5px;
+      border-radius: 4px;
+      padding: 6px 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    #savedList button:hover {
+      background-color: #00ffe7;
+      color: black;
+    }
+
+    #alert {
+      margin-top: 20px;
+      font-weight: bold;
+      color: #ff5c5c;
+      min-height: 24px;
+      animation: blink 1.2s infinite alternate;
+    }
+
+    @keyframes blink {
+      from { opacity: 1; }
+      to   { opacity: 0.6; }
+    }
+
+    @media (max-width: 500px) {
+      input[type="text"] {
+        width: 80%;
+      }
+
+      #weather {
+        padding: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>🌤️ Retro Weather App</h1>
+
+  <div class="input-group">
+    <input type="text" id="cityInput" placeholder="Enter city" />
+    <button onclick="fetchWeather()">Get Weather</button>
+    <button onclick="saveCity()">Save City</button>
+  </div>
+
+  <div id="savedList"></div>
+  <div id="alert"></div>
+  <div id="weather"></div>
+
+  <script>
+    function unixToTime(unix) {
+      return new Date(unix * 1000).toLocaleTimeString();
+    }
+
+    async function fetchWeather(city = null) {
+      const cityName = city || document.getElementById('cityInput').value;
+      const res = await fetch(`/weather?city=${cityName}`);
+      const data = await res.json();
+      const iconCode = data.weather[0].icon;
+      const iconUrl = `https://openweathermap.org/img/wn/${iconCode}@2x.png`; 
+
+      if (data.error) {
+        document.getElementById('weather').innerHTML = `<p>${data.error}</p>`;
+        return;
+      }
+
+      const html = `
+      <h2>${data.name}, ${data.sys.country}</h2>
+      <img src="${iconUrl}" alt="${data.weather[0].description}" />
+      <p><strong>${data.weather[0].main}</strong>: ${data.weather[0].description}</p>
+      <p>🌡 Temp: ${data.main.temp}°C (Feels like: ${data.main.feels_like}°C)</p>
+      <p>💧 Humidity: ${data.main.humidity}%</p>
+      <p>🌬 Wind: ${data.wind.speed} m/s</p>
+      <p>🌅 Sunrise: ${unixToTime(data.sys.sunrise)}</p>
+      <p>🌇 Sunset: ${unixToTime(data.sys.sunset)}</p>
+    `;
+      document.getElementById('weather').innerHTML = html;
+
+      const alertRes = await fetch(`/alert?city=${data.name}`);
+      const alertData = await alertRes.json();
+      document.getElementById('alert').innerText = alertData.alert || '';
+    }
+
+    async function saveCity() {
+  const city = document.getElementById('cityInput').value.trim();
+  const res = await fetch('/locations');
+  const cities = await res.json();
+
+  if (cities.length >= 5) {
+    document.getElementById('alert').innerText = "⚠️ You can save only 5 cities.";
+    return;
+  }
+
+  await fetch('/locations', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ city })
+  });
+
+  document.getElementById('alert').innerText = ""; // Clear alert if successful
+  loadSavedCities();
+}
+
+
+    async function loadSavedCities() {
+      const res = await fetch('/locations');
+      const cities = await res.json();
+      const listDiv = document.getElementById('savedList');
+      listDiv.innerHTML = '<h3>📍 Saved Locations</h3>';
+      cities.forEach(city => {
+        const btn = document.createElement('button');
+        btn.innerText = city;
+        btn.onclick = () => fetchWeather(city);
+        listDiv.appendChild(btn);
+      });
+    }
+
+    loadSavedCities();
+  </script>
+</body>
+</html>
